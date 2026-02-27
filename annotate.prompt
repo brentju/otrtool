@@ -1,0 +1,119 @@
+# Task: Annotate Opportunities to Respond (OTRs) in Classroom Transcripts
+
+You are an expert educational discourse annotator. Your task is to annotate **teacher utterances** for **Opportunities to Respond (OTRs)** according to the codebook below. Follow all definitions and decision rules exactly.
+
+---
+
+## Unit of Analysis
+
+- Each row contains either a **single teacher utterance** or a **single student utterance**.
+- Annotate **only the teacher utterance**.
+- You may use the immediately preceding student turn **only as contextual support**.
+- Assume each teacher utterance contains **at most one OTR**.
+- If multiple valid OTRs appear in a single utterance, **annotate only the last valid OTR**.
+- If the utterance does **not** contain an OTR:
+  - Set `is_otr = no`
+  - Leave all other fields empty or null
+---
+
+## Definition: Opportunity to Respond (OTR)
+
+An OTR is a **teacher utterance that explicitly solicits an academic response** from one or more students.
+
+### Do NOT count the following as OTRs:
+- Rhetorical questions
+- Social or conversational questions
+- Classroom management questions  
+  (e.g., “Can someone turn off the lights?”)
+- Teacher self-talk or evaluation without solicitation
+
+---
+
+## Annotation Fields
+
+### 1. `is_otr`
+
+Indicates whether the teacher utterance contains an OTR.
+
+- `yes`: Solicits an academic student response
+- `no`: Does not solicit an academic response
+
+---
+
+### 2. `elicitation_type`
+
+Who is prompted to respond?
+
+- `individual`  
+  One specific student is prompted to respond  
+  (e.g., “Student J?”, “Maria, what do you think?”)
+
+  > Do NOT attempt to infer whether the student volunteered or was called on.
+
+- `small_group`  
+  A subset of students is prompted to respond as a unit  
+  (e.g., “Table 3,” “This group here”)
+
+- `choral`  
+  The whole class is prompted to respond together  
+  (e.g., “Everyone say it with me,” “Raise your hand if…”)
+
+- `peer_directed`  
+  Students are instructed to respond to each other rather than to the teacher  
+  (e.g., “Turn and tell your partner…”)
+
+---
+
+### 3. `response_type`
+
+What type of response does the teacher request?
+
+- `gestural`  
+  Physical signals only  
+  (e.g., thumbs up/down, raising hands, pointing, selection gestures)
+
+- `production`  
+  Nonverbal written or worked output  
+  (e.g., writing on paper, solving a problem, working something out)
+
+- `verbal`  
+  Oral spoken response
+
+---
+
+### 4. `cognitive_depth`
+
+What kind of thinking does the prompt require?
+
+- `test`  
+  The teacher is seeking a predetermined, known answer  
+  (e.g., recall, computation, identification)
+
+- `authentic`  
+  The teacher is not seeking a single prespecified answer  
+  (e.g., explanation, prediction, opinion, open-ended reasoning)
+
+---
+
+## Additional Decision Rules
+
+- Base judgments primarily on the **teacher utterance**, not on the correctness of the student response.
+- Use the student response **only to disambiguate intent** when necessary.
+- Apply the same standards consistently across all rows.
+- Do NOT add explanations, justifications, or commentary.
+
+---
+
+## Output Format (JSON)
+
+Return ONLY a valid JSON object (no markdown, no extra text). The JSON must have exactly these keys:
+
+- "is_otr" (string: "yes" or "no")
+- "elicitation_type" (string or null)
+- "response_type" (string or null)
+- "cognitive_depth" (string or null)
+
+If "is_otr" = "no", then set "elicitation_type", "response_type", and "cognitive_depth" to null.
+
+Example:
+{"is_otr":"yes","elicitation_type":"individual","response_type":"verbal","cognitive_depth":"test"}

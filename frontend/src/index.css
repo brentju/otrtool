@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-sand-50 text-stone-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-sand-200 p-6 transition-shadow duration-200 hover:shadow-soft-lg;
+  }
+
+  .btn-primary {
+    @apply bg-terracotta-500 hover:bg-terracotta-600 text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-terracotta-400 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium py-2.5 px-5 rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:ring-offset-2;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg border border-sand-300 bg-white focus:border-terracotta-400 focus:ring-2 focus:ring-terracotta-100 outline-none transition-all duration-150 text-stone-900 placeholder:text-stone-400;
+  }
+}
