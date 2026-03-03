@@ -1,4 +1,4 @@
-import { TrendingUp, MessageSquare, Brain, Clock } from 'lucide-react'
+import { TrendingUp, MessageSquare, Brain, Clock, Users } from 'lucide-react'
 import type { SessionMetrics } from '../../types'
 
 interface MetricsGridProps {
@@ -32,10 +32,16 @@ function MetricsGrid({ metrics, duration }: MetricsGridProps) {
       icon: TrendingUp,
       description: 'Instances detected',
     },
+    {
+      title: 'Students Called On',
+      value: metrics.students_called_count ?? 0,
+      icon: Users,
+      description: `${metrics.total_student_mentions ?? 0} total mentions`,
+    },
   ]
 
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
       {metricCards.map((metric) => {
         const Icon = metric.icon
 

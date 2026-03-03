@@ -14,9 +14,9 @@ export interface OTR {
   teacher_text: string
   student_text: string
   is_otr: boolean
-  elicitation_type?: 'individual' | 'small_group' | 'choral' | 'peer_directed'
-  response_type?: 'verbal' | 'gestural' | 'production'
-  cognitive_depth?: 'test' | 'authentic'
+  elicitation_type?: string
+  response_type?: string
+  cognitive_depth?: string
   has_student_reasoning?: boolean
 }
 
@@ -28,6 +28,9 @@ export interface SessionMetrics {
   elicitation_distribution: Record<string, number>
   response_type_distribution: Record<string, number>
   cognitive_depth_distribution: Record<string, number>
+  student_mention_distribution: Record<string, number>
+  students_called_count: number
+  total_student_mentions: number
 }
 
 export interface StudentReasoning {

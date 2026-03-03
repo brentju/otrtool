@@ -39,6 +39,9 @@ export interface SessionMetrics {
   elicitation_distribution: Record<string, number>
   response_type_distribution: Record<string, number>
   cognitive_depth_distribution: Record<string, number>
+  student_mention_distribution: Record<string, number>
+  students_called_count: number
+  total_student_mentions: number
 }
 
 export const sessionsApi = {

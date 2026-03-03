@@ -16,20 +16,24 @@ const COLORS = {
 const PIE_COLORS = ['#c4704a', '#908b82', '#b5ada1', '#cfc8bd']
 
 function OTRCharts({ metrics }: OTRChartsProps) {
-  const elicitationData = Object.entries(metrics.elicitation_distribution).map(([name, value]) => ({
+  const elicitationData = Object.entries(metrics.elicitation_distribution ?? {}).map(([name, value]) => ({
     name: name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
     value,
   }))
 
-  const responseData = Object.entries(metrics.response_type_distribution).map(([name, value]) => ({
+  const responseData = Object.entries(metrics.response_type_distribution ?? {}).map(([name, value]) => ({
     name: name.charAt(0).toUpperCase() + name.slice(1),
     value,
   }))
 
-  const depthData = Object.entries(metrics.cognitive_depth_distribution).map(([name, value]) => ({
+  const depthData = Object.entries(metrics.cognitive_depth_distribution ?? {}).map(([name, value]) => ({
     name: name.charAt(0).toUpperCase() + name.slice(1),
     value,
   }))
+
+  const studentMentionData = Object.entries(metrics.student_mention_distribution ?? {})
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
 
   const tooltipStyle = {
     backgroundColor: 'white',
@@ -92,6 +96,26 @@ function OTRCharts({ metrics }: OTRChartsProps) {
             <Bar dataKey="value" fill={COLORS.secondary} radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Students Called On */}
+      <div className="card lg:col-span-2">
+        <h3 className="text-sm font-semibold text-stone-900 mb-4">Students Called On</h3>
+        {studentMentionData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={Math.max(220, studentMentionData.length * 44)}>
+            <BarChart data={studentMentionData} layout="vertical" margin={{ left: 16, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0dbd3" />
+              <XAxis type="number" stroke="#9b9286" fontSize={12} />
+              <YAxis dataKey="name" type="category" stroke="#9b9286" width={130} fontSize={12} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="value" fill={COLORS.tertiary} radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[220px] flex items-center justify-center text-sm text-stone-500">
+            No student mentions detected in OTRs yet.
+          </div>
+        )}
       </div>
     </div>
   )

@@ -33,6 +33,7 @@ CREATE TABLE otrs (
     elicitation_type TEXT,
     response_type TEXT,
     cognitive_depth TEXT,
+    mentioned_students JSONB DEFAULT '[]'::jsonb,
     gold_is_otr BOOLEAN,
     gold_elicitation_type TEXT,
     gold_response_type TEXT,
@@ -56,6 +57,7 @@ CREATE TABLE student_reasoning (
 -- Indexes for performance
 CREATE INDEX idx_otrs_session_id ON otrs(session_id);
 CREATE INDEX idx_otrs_is_otr ON otrs(session_id, is_otr);
+CREATE INDEX idx_otrs_mentioned_students_gin ON otrs USING GIN (mentioned_students);
 CREATE INDEX idx_student_reasoning_session_id ON student_reasoning(session_id);
 CREATE INDEX idx_student_reasoning_has_reasoning ON student_reasoning(session_id, has_reasoning);
 
@@ -86,6 +88,9 @@ DECLARE
     v_elicitation_dist JSON;
     v_response_dist JSON;
     v_depth_dist JSON;
+    v_student_mention_dist JSON;
+    v_students_called_count INTEGER;
+    v_total_student_mentions INTEGER;
 BEGIN
     -- Get total OTRs
     SELECT COUNT(*) INTO v_total_otrs
@@ -146,6 +151,21 @@ BEGIN
         GROUP BY cognitive_depth
     ) t;
 
+    -- Get student mention distribution from OTR teacher utterances
+    SELECT
+        json_object_agg(student_name, cnt),
+        COUNT(*),
+        SUM(cnt)
+    INTO v_student_mention_dist, v_students_called_count, v_total_student_mentions
+    FROM (
+        SELECT mentioned_student AS student_name, COUNT(*) AS cnt
+        FROM otrs o
+        CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(o.mentioned_students, '[]'::jsonb)) AS mentioned_student
+        WHERE o.session_id = p_session_id
+          AND o.is_otr = true
+        GROUP BY mentioned_student
+    ) t;
+
     RETURN json_build_object(
         'total_otrs', COALESCE(v_total_otrs, 0),
         'otrs_per_minute', COALESCE(v_otrs_per_minute, 0),
@@ -153,7 +173,10 @@ BEGIN
         'student_reasoning_count', COALESCE(v_student_reasoning_count, 0),
         'elicitation_distribution', COALESCE(v_elicitation_dist, '{}'::json),
         'response_type_distribution', COALESCE(v_response_dist, '{}'::json),
-        'cognitive_depth_distribution', COALESCE(v_depth_dist, '{}'::json)
+        'cognitive_depth_distribution', COALESCE(v_depth_dist, '{}'::json),
+        'student_mention_distribution', COALESCE(v_student_mention_dist, '{}'::json),
+        'students_called_count', COALESCE(v_students_called_count, 0),
+        'total_student_mentions', COALESCE(v_total_student_mentions, 0)
     );
 END;
 $$ LANGUAGE plpgsql;

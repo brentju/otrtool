@@ -5,6 +5,7 @@ import os
 import csv
 import io
 import json
+import re
 import time
 from pathlib import Path
 from typing import Dict, Any
@@ -34,6 +35,101 @@ openai_client = OpenAI()
 # Load annotation prompt
 PROMPT_FILE = Path(__file__).parent.parent / "annotate.prompt"
 ANNOTATION_SYSTEM_PROMPT = PROMPT_FILE.read_text(encoding="utf-8") if PROMPT_FILE.exists() else ""
+
+STUDENT_MENTION_STOP_WORDS = {
+    "teacher", "student", "students", "class",
+    "what", "why", "how", "when", "where", "who",
+    "can", "could", "would", "will", "do", "does", "did",
+    "please", "okay", "ok", "so", "now", "and", "then",
+    "oh", "ah", "uh", "um", "mm", "mhm",
+    "right", "well", "yeah", "yes", "no", "nope",
+    "hey", "hi", "hello", "thanks", "thank", "sorry",
+    "everyone", "anybody", "somebody", "yall",
+    "friend", "buddy", "honey", "sweetie",
+}
+
+
+def is_valid_student_mention_label(label: str) -> bool:
+    cleaned = " ".join((label or "").strip().split())
+    if not cleaned:
+        return False
+
+    # Explicit placeholders are always allowed.
+    if re.fullmatch(r"Student\s+[A-Za-z0-9]+", cleaned, re.IGNORECASE):
+        return True
+
+    if len(cleaned) < 3:
+        return False
+    if cleaned.lower() in STUDENT_MENTION_STOP_WORDS:
+        return False
+
+    # Name-like labels should remain capitalized tokens (e.g., "Maria", "Dee Shaw").
+    if not re.fullmatch(r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?", cleaned):
+        return False
+    return True
+
+
+def sanitize_student_mention_distribution(raw_dist: Dict[str, Any] | None) -> Dict[str, int]:
+    if not raw_dist:
+        return {}
+
+    clean_dist: Dict[str, int] = {}
+    for label, count in raw_dist.items():
+        normalized = " ".join(str(label).strip().split())
+        if not is_valid_student_mention_label(normalized):
+            continue
+        numeric_count = int(count) if count is not None else 0
+        if numeric_count <= 0:
+            continue
+        clean_dist[normalized] = clean_dist.get(normalized, 0) + numeric_count
+    return clean_dist
+
+
+def extract_student_mentions(teacher_text: str) -> list[str]:
+    """
+    Extract student mentions from a teacher utterance.
+    Captures placeholders like "Student A" and likely names used as direct address.
+    """
+    if not teacher_text:
+        return []
+
+    mentions: list[str] = []
+    seen = set()
+
+    def add_mention(value: str):
+        cleaned = " ".join(value.strip().split())
+        if not cleaned:
+            return
+        key = cleaned.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        mentions.append(cleaned)
+
+    # Explicit placeholder mentions (e.g., Student A / student b / Student 12)
+    placeholder_pattern = re.compile(r"\bstudent\s+([a-z0-9]+)\b", re.IGNORECASE)
+    for token in placeholder_pattern.findall(teacher_text):
+        normalized = token.upper() if len(token) == 1 else token.capitalize()
+        add_mention(f"Student {normalized}")
+
+    # Name-like mentions from direct-address contexts.
+    # Examples:
+    # - "Maria, can you explain?"
+    # - "What do you think, Jamal?"
+    sentence_start_vocative_pattern = re.compile(r"(?:^|[.!?]\s*)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*,")
+    comma_vocative_pattern = re.compile(r",\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s*(?=[.!?]|$)")
+    def maybe_add_name(candidate: str):
+        if not is_valid_student_mention_label(candidate):
+            return
+        add_mention(candidate)
+
+    for candidate in sentence_start_vocative_pattern.findall(teacher_text):
+        maybe_add_name(candidate)
+
+    for candidate in comma_vocative_pattern.findall(teacher_text):
+        maybe_add_name(candidate)
+
+    return mentions
 
 
 def annotate_with_openai(student_text: str, teacher_text: str) -> Dict[str, Any]:
@@ -295,6 +391,7 @@ def upload_transcript():
 
             # Convert prediction to database format
             is_otr = pred.get('is_otr', 'no').lower() == 'yes'
+            mentioned_students = extract_student_mentions(exchange['teacher_text']) if is_otr else []
             otr_record = {
                 'session_id': session_id,
                 'exchange_idx': exchange['exchange_idx'],
@@ -305,6 +402,7 @@ def upload_transcript():
                 'elicitation_type': pred.get('elicitation_type'),
                 'response_type': pred.get('response_type'),
                 'cognitive_depth': pred.get('cognitive_depth'),
+                'mentioned_students': mentioned_students,
             }
             otr_records.append(otr_record)
 
@@ -363,7 +461,14 @@ def get_session_metrics(session_id: str):
         result = supabase.rpc('get_session_metrics', {'p_session_id': session_id}).execute()
         
         if result.data:
-            return jsonify(result.data), 200
+            metrics = result.data
+            student_mention_dist = sanitize_student_mention_distribution(
+                metrics.get('student_mention_distribution')
+            )
+            metrics['student_mention_distribution'] = student_mention_dist
+            metrics['students_called_count'] = len(student_mention_dist)
+            metrics['total_student_mentions'] = sum(student_mention_dist.values())
+            return jsonify(metrics), 200
         else:
             # Fallback: calculate manually
             otrs_result = supabase.table('otrs').select('*').eq('session_id', session_id).execute()
@@ -375,6 +480,7 @@ def get_session_metrics(session_id: str):
             elicitation_dist = {}
             response_dist = {}
             depth_dist = {}
+            student_mention_dist = {}
             
             for otr in otrs:
                 if otr.get('elicitation_type'):
@@ -383,6 +489,9 @@ def get_session_metrics(session_id: str):
                     response_dist[otr['response_type']] = response_dist.get(otr['response_type'], 0) + 1
                 if otr.get('cognitive_depth'):
                     depth_dist[otr['cognitive_depth']] = depth_dist.get(otr['cognitive_depth'], 0) + 1
+                for student in otr.get('mentioned_students') or []:
+                    if is_valid_student_mention_label(student):
+                        student_mention_dist[student] = student_mention_dist.get(student, 0) + 1
             
             duration = session_result.data[0]['duration_minutes'] if session_result.data and session_result.data[0].get('duration_minutes') else 1
             
@@ -394,6 +503,9 @@ def get_session_metrics(session_id: str):
                 'elicitation_distribution': elicitation_dist,
                 'response_type_distribution': response_dist,
                 'cognitive_depth_distribution': depth_dist,
+                'student_mention_distribution': student_mention_dist,
+                'students_called_count': len(student_mention_dist),
+                'total_student_mentions': sum(student_mention_dist.values()),
             }
             
             return jsonify(metrics), 200
