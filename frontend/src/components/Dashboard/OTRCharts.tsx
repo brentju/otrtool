@@ -31,6 +31,16 @@ function OTRCharts({ metrics }: OTRChartsProps) {
     value,
   }))
 
+  const authenticCount = metrics.cognitive_depth_distribution?.authentic ?? 0
+  const testCount = metrics.cognitive_depth_distribution?.test ?? 0
+  const authenticVsTestTotal = authenticCount + testCount
+  const authenticRatioData = [
+    { name: 'Authentic', value: authenticCount },
+    { name: 'Test', value: testCount },
+  ]
+  const authenticPct = authenticVsTestTotal > 0 ? (authenticCount / authenticVsTestTotal) * 100 : 0
+  const testPct = authenticVsTestTotal > 0 ? (testCount / authenticVsTestTotal) * 100 : 0
+
   const studentMentionData = Object.entries(metrics.student_mention_distribution ?? {})
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
@@ -96,6 +106,42 @@ function OTRCharts({ metrics }: OTRChartsProps) {
             <Bar dataKey="value" fill={COLORS.secondary} radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Authentic vs Test Ratio */}
+      <div className="card">
+        <h3 className="text-sm font-semibold text-stone-900 mb-4">Authentic vs Test Ratio</h3>
+        {authenticVsTestTotal > 0 ? (
+          <>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={authenticRatioData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={80}
+                  dataKey="value"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  fontSize={12}
+                >
+                  <Cell fill={COLORS.primary} />
+                  <Cell fill={COLORS.quaternary} />
+                </Pie>
+                <Tooltip contentStyle={tooltipStyle} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex items-center justify-center gap-6 text-sm text-stone-600">
+              <span>Authentic: {authenticCount} ({authenticPct.toFixed(0)}%)</span>
+              <span>Test: {testCount} ({testPct.toFixed(0)}%)</span>
+            </div>
+          </>
+        ) : (
+          <div className="h-[220px] flex items-center justify-center text-sm text-stone-500">
+            No authentic/test OTRs yet.
+          </div>
+        )}
       </div>
 
       {/* Students Called On */}
