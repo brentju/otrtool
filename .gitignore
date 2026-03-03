@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+backend/venv
 
 # Build outputs
 dist/

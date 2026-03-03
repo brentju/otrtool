@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { BarChart3, Brain, RefreshCw, Trash2, ArrowLeft } from 'lucide-react'
+import { BarChart3, Brain, RefreshCw, Trash2, ArrowLeft, LineChart } from 'lucide-react'
 import { sessionsApi, annotationApi } from '../lib/api'
 import type { Session, SessionMetrics, OTR } from '../types'
 import MetricsGrid from '../components/Dashboard/MetricsGrid'
 import OTRCharts from '../components/Dashboard/OTRCharts'
+import AuthenticQuestionsPanel from '../components/Dashboard/AuthenticQuestionsPanel'
 import TranscriptViewer from '../components/Transcript/TranscriptViewer'
 
 export default function SessionDetail() {
@@ -15,7 +16,7 @@ export default function SessionDetail() {
   const [otrs, setOtrs] = useState<OTR[]>([])
   const [loading, setLoading] = useState(true)
   const [annotating, setAnnotating] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transcript'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'authentic' | 'transcript'>('dashboard')
 
   useEffect(() => {
     if (!id) return
@@ -146,6 +147,19 @@ export default function SessionDetail() {
             </div>
           </button>
           <button
+            onClick={() => setActiveTab('authentic')}
+            className={`pb-2 px-0.5 border-b-2 text-sm font-medium transition-colors ${
+              activeTab === 'authentic'
+                ? 'border-terracotta-500 text-stone-900'
+                : 'border-transparent text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              <LineChart className="w-3.5 h-3.5" />
+              Authentic Questions
+            </div>
+          </button>
+          <button
             onClick={() => setActiveTab('transcript')}
             className={`pb-2 px-0.5 border-b-2 text-sm font-medium transition-colors ${
               activeTab === 'transcript'
@@ -168,6 +182,8 @@ export default function SessionDetail() {
             <MetricsGrid metrics={metrics} duration={session.duration_minutes} />
             <OTRCharts metrics={metrics} />
           </div>
+        ) : activeTab === 'authentic' ? (
+          <AuthenticQuestionsPanel metrics={metrics} otrs={otrs} />
         ) : (
           <div className="max-w-4xl mx-auto">
             <TranscriptViewer otrs={otrs} />
