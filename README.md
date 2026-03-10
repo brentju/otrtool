@@ -111,22 +111,39 @@ otrtool/
 
 ## Deployment
 
-### Frontend (Vercel)
+### Quick Demo Deploy (Vercel + Render)
 
-1. Connect your GitHub repository to Vercel
-2. Set environment variables:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_API_URL` (your Railway/Render backend URL)
-3. Deploy
+This is the fastest reliable setup for a next-day demo:
 
-### Backend (Railway)
+1. **Deploy backend to Render**
+   - Create a new Render **Web Service** from this repo and set root directory to `backend/`.
+   - You can also use the included `render.yaml` Blueprint.
+   - Python version is pinned to 3.11 for dependency compatibility (`PYTHON_VERSION=3.11.11`).
+   - Start command:
+     - `gunicorn app:app --bind 0.0.0.0:$PORT`
+   - Add environment variables in Render:
+     - `SUPABASE_URL`
+     - `SUPABASE_KEY` (Supabase **service role** key)
+     - `OPENAI_API_KEY` (optional, but recommended for real annotation output)
+   - After deploy, verify:
+     - `https://<your-backend-domain>/api/health` returns `{"status":"ok"}`
 
-1. Create new Railway project from GitHub
-2. Set environment variables:
-   - `SUPABASE_URL`
-   - `SUPABASE_KEY` (use service role key)
-3. Deploy
+2. **Deploy frontend to Vercel**
+   - Import the same repository into Vercel (root-level `vercel.json` is already configured).
+   - Add environment variables:
+     - `VITE_SUPABASE_URL`
+     - `VITE_SUPABASE_ANON_KEY`
+     - `VITE_API_URL` = `https://<your-backend-domain>/api`
+   - Redeploy after saving env vars.
+
+3. **Run a 2-minute smoke test**
+   - Open the deployed frontend URL.
+   - Upload `gpt5mini_annotations.csv`.
+   - Confirm dashboard charts load and session details render.
+
+### Alternative: Render (both services)
+
+You can also host the frontend as a Render Static Site and keep the same backend setup. Use the same environment variables shown above and point `VITE_API_URL` to your Render backend `/api` URL.
 
 ## Design Philosophy
 

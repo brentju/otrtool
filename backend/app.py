@@ -18,6 +18,7 @@ from supabase import create_client, Client
 from openai import OpenAI
 
 # Load environment variables
+load_dotenv(Path(__file__).parent / ".env")
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Initialize Flask app
@@ -30,7 +31,8 @@ supabase_key = os.getenv('SUPABASE_KEY')
 supabase: Client = create_client(supabase_url, supabase_key)
 
 # Initialize OpenAI client
-openai_client = OpenAI()
+openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
+openai_client = OpenAI(api_key=openai_api_key) if openai_api_key else None
 
 # Load annotation prompt
 PROMPT_FILE = Path(__file__).parent.parent / "annotate.prompt"
@@ -137,6 +139,14 @@ def annotate_with_openai(student_text: str, teacher_text: str) -> Dict[str, Any]
     Call OpenAI API to annotate a teacher utterance for OTRs.
     Returns the prediction as a dict with keys: is_otr, elicitation_type, response_type, cognitive_depth
     """
+    if openai_client is None:
+        return {
+            "is_otr": "no",
+            "elicitation_type": None,
+            "response_type": None,
+            "cognitive_depth": None,
+        }
+
     try:
         user_message = (
             f"Student utterance:\n{student_text}\n\n"
@@ -339,6 +349,12 @@ def parse_transcript_for_annotation(file_content: str, filename: str) -> list[Di
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'ok'})
+
+
+@app.route('/', methods=['GET'])
+def root_health_check():
+    """Root health check for platforms that probe '/'."""
+    return jsonify({'status': 'ok', 'service': 'otrtool-backend'})
 
 
 @app.route('/api/upload', methods=['POST'])
